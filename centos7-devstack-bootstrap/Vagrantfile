@@ -64,16 +64,16 @@ Vagrant.configure(2) do |config|
 	1
     
 	+5G
-    n
-    p
-    2
-    
-    +5G
-    n
-    p
-    3
-    
-    
+	n
+	p
+	2
+	
+	+5G
+	n
+	p
+	3
+	
+	
 	w
 	__FDISK__
 
@@ -112,11 +112,11 @@ Vagrant.configure(2) do |config|
 
 		cat <<-__EOF__ > local.conf
 		[[local|localrc]]
-        FLAT_INTERFACE=eth0
+		FLAT_INTERFACE=eth0
 		NETWORK_GATEWAY=10.0.2.2
-        FLOATING_RANGE=10.0.2.48/28
+		FLOATING_RANGE=10.0.2.48/28
 		FIXED_RANGE=10.0.2.96/27
-        FIXED_NETWORK_SIZE=32
+		FIXED_NETWORK_SIZE=32
 		LOGDAYS=1
 		LOGDIR=/home/stack/devstack/log
 		LOGFILE=/home/stack/devstack/log/stack.sh.log
