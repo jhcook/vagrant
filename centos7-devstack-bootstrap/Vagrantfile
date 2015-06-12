@@ -86,11 +86,11 @@ Vagrant.configure(2) do |config|
 	# Add this to /etc/fstab is there is no other entry for /opt/stack
 	grep -q '/opt/stack' /etc/fstab || ( echo `blkid /dev/sdb1 | awk '{print$2}' | sed -e 's/"//g'` /opt/stack   xfs   noatime,nobarrier   0   0 >> /etc/fstab ;  mount /opt/stack )
 
-    # Create vgroup stack-volumes-default
-    vgcreate stack-volumes-default /dev/sdb2 || /bin/true
+	# Create vgroup stack-volumes-default
+	vgcreate stack-volumes-default /dev/sdb2 || /bin/true
 
-    # Create vgroup stack-volumes-lvmdriver-1
-    vgcreate stack-volumes-lvmdriver-1 /dev/sdb3 || /bin/true
+	# Create vgroup stack-volumes-lvmdriver-1
+	vgcreate stack-volumes-lvmdriver-1 /dev/sdb3 || /bin/true
 
 	# Restart networking so changes take effect (Vagrant/RHEL workaround)
 	systemctl restart NetworkManager.service &&  systemctl restart network.service || /bin/true
