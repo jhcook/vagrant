@@ -5,6 +5,8 @@ This is a Vagrant box that implements a single Openstack Devstack machine you ca
 
 http://docs.openstack.org/developer/devstack/guides/single-machine.html
 
+Before you run this, you need to add a 'devstack' network in Virtualbox of 10.2.3.0/24.
+
 This is named bootstrap; because, it takes a minimal CentOS7 guest in Virtualbox and builds
 the entire stack from git clone to end. All you have to do is `vagrant init jhcook/centos7-devstack-bootstrap`, `vagrant up` and then open your browser to http://localhost:8080.
 
