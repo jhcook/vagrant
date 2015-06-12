@@ -1,0 +1,144 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Author: Justin Cook <jhcook@gmail.com>
+
+Vagrant.configure(2) do |config|
+
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://atlas.hashicorp.com/search.
+  config.vm.box = "jhcook/centos7"
+
+  # The guest should have an identifiable hostname
+  config.vm.hostname = "centos7-devstack.secnix.com"
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine. In the example below,
+  # accessing "localhost:8080" will access port 80 on the guest machine.
+  config.vm.network "forwarded_port", guest: 80, host: 8080
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  # config.vm.network "private_network", ip: "192.168.33.10"
+
+  # Create a public network, which generally matched to bridged network.
+  # Bridged networks make the machine appear as another physical device on
+  # your network.
+  # config.vm.network "public_network"
+
+  config.vm.provider "virtualbox" do |vb|
+    # Display the VirtualBox GUI when booting the machine
+    # vb.gui = true
+
+    # Name the vm clever but avoid collisions
+    vb.name = "centos7-devstack-bootstrap_#{Time.now.utc.to_i}"
+
+    # Create a 20 GB disk for /opt/stack and attach it to the SATA controller.
+    opt_file = "#{Dir.home}/VirtualBox VMs/#{vb.name}/optStackDisk.vdi"
+    vb.customize ['createhd', '--filename', opt_file, '--size', 20 * 1024]
+    vb.customize ['storageattach', :id,  '--storagectl', 'SATA', '--port', 1, '--device', 0, 
+                  '--type', 'hdd', '--medium', opt_file]
+
+    # Customize the amount of memory and CPU on the VM:
+    vb.memory = 4096
+    vb.cpus = 2
+
+    # Paravirt the NIC
+    vb.customize ["modifyvm", :id, "--nictype1", "virtio" ]
+  end
+
+  # Enable provisioning with a shell script. Additional provisioners such as
+  # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
+  # documentation for more information about their specific syntax and use.
+
+  # Use tabs!!! There are embedded here docs.
+
+  config.vm.provision "shell", inline: <<-SHELL
+	set -x
+	set -o errexit
+
+	# Create a partition for /opt/stack, default vgroup and the rest for a specific vgroup.
+	fdisk /dev/sdb <<-__FDISK__
+	n
+	p
+	1
+    
+	+5G
+    n
+    p
+    2
+    
+    +5G
+    n
+    p
+    3
+    
+    
+	w
+	__FDISK__
+
+	# Create an xfs filesystem on the partition just created.
+	mkfs.xfs /dev/sdb1
+	mkdir -p /opt/stack || /bin/true
+
+	# Add this to /etc/fstab is there is no other entry for /opt/stack
+	grep -q '/opt/stack' /etc/fstab || ( echo `blkid /dev/sdb1 | awk '{print$2}' | sed -e 's/"//g'` /opt/stack   xfs   noatime,nobarrier   0   0 >> /etc/fstab ;  mount /opt/stack )
+
+    # Create vgroup stack-volumes-default
+    vgcreate stack-volumes-default /dev/sdb2
+
+    # Create vgroup stack-volumes-lvmdriver-1
+    vgcreate stack-volumes-lvmdriver-1 /dev/sdb3
+
+	# Install tools needed for devstack
+	yum -y install yum-utils
+	yum -y install bridge-utils net-tools
+	yum -y install iptables-services
+	yum -y install git
+
+	# Create the user 'stack', clone devstack from git and run the stack.
+	adduser -g wheel stack || /bin/true
+	sudo -u stack -H sh <<-__HACK__
+		cd
+		declare ADMIN_PASSWORD='admin'
+
+		if [ -d 'devstack' ]
+		then
+	  	  rm -fr devstack
+		fi
+
+		git clone https://git.openstack.org/openstack-dev/devstack
+		cd devstack
+
+		cat <<-__EOF__ > local.conf
+		[[local|localrc]]
+        FLAT_INTERFACE=eth0
+		NETWORK_GATEWAY=10.0.2.2
+        FLOATING_RANGE=10.0.2.48/28
+		FIXED_RANGE=10.0.2.96/27
+        FIXED_NETWORK_SIZE=32
+		LOGDAYS=1
+		LOGDIR=/home/stack/devstack/log
+		LOGFILE=/home/stack/devstack/log/stack.sh.log
+		ADMIN_PASSWORD=admin
+		DATABASE_PASSWORD=admin
+		RABBIT_PASSWORD=admin
+		SERVICE_PASSWORD=admin
+		SERVICE_TOKEN=a682f596-76f3-11e3-b3b2-e716f9080d50
+		__EOF__
+
+		./stack.sh
+	__HACK__
+
+	# Start and stop critical services either needed or that get in the way.
+	systemctl stop iptables.service
+	systemctl disable iptables.service
+	systemctl enable mariadb
+	systemctl enable httpd
+	systemctl enable rabbitmq-server
+	systemctl enable tgtd
+
+    # Disable SELinux because it interferes when rebooted
+    grep -q SELINUX=enforcing /etc/selinux/config && sed -i 's/SELINUX=enforcing/SELINUX=permissive/' /etc/selinux/config
+  SHELL
+end
