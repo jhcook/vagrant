@@ -1,9 +1,8 @@
 This is a post-build box of centos7-devstack-bootstrap. In order to use, perform the following:
 
-
+```bash
 $ vagrant init jhcook/centos7-devstack
 $ vagrant up
-```bash
 => default: Box 'jhcook/centos7-devstack' could not be found. Attempting to find and install...
     default: Box Provider: virtualbox
     default: Box Version: >= 0
