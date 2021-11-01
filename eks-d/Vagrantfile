@@ -10,7 +10,9 @@ K8SV="1.21.2"
 DSHV=K8SV.gsub('.', '-')
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "jhcook/centos7"
+  config.vm.box = "jhcook/centos8"
+
+  config.vagrant.plugins = "vagrant-reload"
 
   # config.vm.box_check_update = false
   config.vm.network "forwarded_port", guest_ip: "10.0.2.15", guest: 6443, \
@@ -105,8 +107,19 @@ __EOF__
     sed -i 's|server:.*|server: https://localhost:6443|g' \
       /vagrant/eks-d.kubeconfig
 
+    # Untaint master
+    kubectl taint nodes --all node-role.kubernetes.io/master-
+
     # Install CNI
-#    kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=v#{K8SV}-eks-#{DSHV}"
-#    kubectl taint nodes --all node-role.kubernetes.io/master
+    # https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/
+    curl -L --silent --remote-name-all https://github.com/cilium/cilium-cli/releases/latest/download/cilium-linux-amd64.tar.gz{,.sha256sum}
+    sha256sum --check cilium-linux-amd64.tar.gz.sha256sum
+    tar xzvfC cilium-linux-amd64.tar.gz /usr/local/bin
+    rm cilium-linux-amd64.tar.gz{,.sha256sum}
+    # https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/
+    /usr/local/bin/cilium install
   SHELL
+
+  # Reboot -- c'est la vie
+  config.vm.provision :reload
 end
