@@ -7,7 +7,7 @@
 # you're doing.
 
 K8SV="1.21.2"
-DSHV=K8SV.gsub('.', '-')
+DSHV="1-21-6"
 
 Vagrant.configure("2") do |config|
   config.vm.box = "jhcook/centos8"
@@ -60,20 +60,20 @@ __EOF__
     systemctl enable --now kubelet
 
     docker pull \
-      public.ecr.aws/eks-distro/kubernetes/pause:v1.21.2-eks-1-21-2
+      public.ecr.aws/eks-distro/kubernetes/pause:v1.21.2-eks-#{DSHV}
     docker pull \
-      public.ecr.aws/eks-distro/coredns/coredns:v1.8.3-eks-1-21-2
+      public.ecr.aws/eks-distro/coredns/coredns:v1.8.3-eks-#{DSHV}
     docker pull \
-      public.ecr.aws/eks-distro/etcd-io/etcd:v3.4.16-eks-1-21-2
+      public.ecr.aws/eks-distro/etcd-io/etcd:v3.4.16-eks-#{DSHV}
 
     docker tag \
-      public.ecr.aws/eks-distro/kubernetes/pause:v1.21.2-eks-1-21-2 \
+      public.ecr.aws/eks-distro/kubernetes/pause:v1.21.2-eks-#{DSHV} \
       public.ecr.aws/eks-distro/kubernetes/pause:3.4.1
     docker tag \
-      public.ecr.aws/eks-distro/coredns/coredns:v1.8.3-eks-1-21-2 \
+      public.ecr.aws/eks-distro/coredns/coredns:v1.8.3-eks-#{DSHV} \
       public.ecr.aws/eks-distro/kubernetes/coredns:v1.8.0
     docker tag \
-      public.ecr.aws/eks-distro/etcd-io/etcd:v3.4.16-eks-1-21-2 \
+      public.ecr.aws/eks-distro/etcd-io/etcd:v3.4.16-eks-#{DSHV} \
       public.ecr.aws/eks-distro/kubernetes/etcd:3.4.13-0
 
     cat << __EOF__ > /etc/modules-load.d/k8s.conf
@@ -90,7 +90,7 @@ __EOF__
       --add-port=2379-2380/tcp --add-port=10250-10252/tcp
 
 cat << __EOF__ >> /etc/hosts
-10.0.2.15   centos7-vbox centos7-vbox.localdomain
+10.0.2.15   centos8-vbox centos7-vbox.localdomain
 __EOF__
 
     yum install -y kubeadm
@@ -118,6 +118,13 @@ __EOF__
     rm cilium-linux-amd64.tar.gz{,.sha256sum}
     # https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/
     /usr/local/bin/cilium install
+
+    # Patch coredns clusterrole
+    # https://docs.aws.amazon.com/eks/latest/userguide/managing-coredns.html#updating-coredns-add-on
+    kubectl patch clusterrole system:coredns -n kube-system \
+      --type='json' \
+      -p='[{"op": "add", "path": "/rules/0", "value":{ "apiGroups": ["discovery.k8s.io"], "resources": ["endpointslices"], "verbs": ["list","watch"]}}]'
+
   SHELL
 
   # Reboot -- c'est la vie
