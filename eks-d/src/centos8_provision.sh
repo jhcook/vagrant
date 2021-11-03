@@ -46,8 +46,16 @@ __EOF__
 
 # EKS 1.20+ uses containerd
 yum install -y iproute-tc socat conntrack-tools docker-ce-cli docker-ce \
-  containerd.io kubelet-${K8SV} kubeadm kubectl-${K8SV} \
+  containerd.io kubelet-"${K8SV}" kubeadm kubectl-"${K8SV}" \
   --disableexcludes=kubernetes
+
+# Install Helm and add necessary repos
+curl -L --silent --remote-name-all https://get.helm.sh/helm-v3.7.1-linux-amd64.tar.gz{,.sha256sum}
+sha256sum --check helm-v3.7.1-linux-amd64.tar.gz.sha256sum
+tar zxvfC helm-v3.7.1-linux-amd64.tar.gz /usr/local/bin --strip-components=1 linux-amd64/helm
+rm helm-v3.7.1-linux-amd64.tar.gz{,.sha256sum}
+/usr/local/bin/helm repo add traefik https://helm.traefik.io/traefik
+/usr/local/bin/helm repo update
 
 # We need to configure docker to use the same cgroup driver as Kubelet
 test -d /etc/docker || mkdir /etc/docker
@@ -68,20 +76,20 @@ systemctl enable --now kubelet
 # Download and tag the relevant images for the specific K8s version as
 # kubeadm associates specific values.
 docker pull \
-  public.ecr.aws/eks-distro/kubernetes/pause:v1.21.2-eks-${DSHV}
+  public.ecr.aws/eks-distro/kubernetes/pause:v1.21.2-eks-"${DSHV}"
 docker pull \
-  public.ecr.aws/eks-distro/coredns/coredns:v1.8.3-eks-${DSHV}
+  public.ecr.aws/eks-distro/coredns/coredns:v1.8.3-eks-"${DSHV}"
 docker pull \
-  public.ecr.aws/eks-distro/etcd-io/etcd:v3.4.16-eks-${DSHV}
+  public.ecr.aws/eks-distro/etcd-io/etcd:v3.4.16-eks-"${DSHV}"
 
 docker tag \
-  public.ecr.aws/eks-distro/kubernetes/pause:v1.21.2-eks-${DSHV} \
+  public.ecr.aws/eks-distro/kubernetes/pause:v1.21.2-eks-"${DSHV}" \
   public.ecr.aws/eks-distro/kubernetes/pause:3.4.1
 docker tag \
-  public.ecr.aws/eks-distro/coredns/coredns:v1.8.3-eks-${DSHV} \
+  public.ecr.aws/eks-distro/coredns/coredns:v1.8.3-eks-"${DSHV}" \
   public.ecr.aws/eks-distro/kubernetes/coredns:v1.8.4
 docker tag \
-  public.ecr.aws/eks-distro/etcd-io/etcd:v3.4.16-eks-${DSHV} \
+  public.ecr.aws/eks-distro/etcd-io/etcd:v3.4.16-eks-"${DSHV}" \
   public.ecr.aws/eks-distro/kubernetes/etcd:3.4.13-0
 
 cat << __EOF__ > /etc/modules-load.d/k8s.conf
@@ -119,7 +127,7 @@ cgroupDriver: systemd
 __EOF__
 
 # Build the cluster
-kubeadm init --config ${TMPDIR}kubeadm-config.yaml
+kubeadm init --config ${TMPDIR}kubeadm-config.yaml || /bin/true
 
 # Configure the client
 mkdir -p ~/.kube
@@ -131,7 +139,12 @@ sed -i 's|server:.*|server: https://localhost:6443|g' \
   ${TMPDIR}eks-d.kubeconfig
 
 # Untaint master NoSchedule
-kubectl taint nodes --all node-role.kubernetes.io/master-
+kubectl taint nodes --all node-role.kubernetes.io/master- || /bin/true
+
+# Patch coredns clusterrole
+kubectl patch clusterrole system:coredns -n kube-system \
+  --type='json' \
+  -p='[{"op": "add", "path": "/rules/0", "value":{ "apiGroups": ["discovery.k8s.io"], "resources": ["endpointslices"], "verbs": ["list","watch"]}}]'
 
 # Install CNI
 # https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/
@@ -140,9 +153,12 @@ sha256sum --check cilium-linux-amd64.tar.gz.sha256sum
 tar xzvfC cilium-linux-amd64.tar.gz /usr/local/bin
 rm cilium-linux-amd64.tar.gz{,.sha256sum}
 # https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/
-/usr/local/bin/cilium install
+/usr/local/bin/cilium install || /bin/true
+kubectl wait --for=condition=available --timeout=600s deployment/cilium-operator -n kube-system
 
-# Patch coredns clusterrole
-kubectl patch clusterrole system:coredns -n kube-system \
-  --type='json' \
-  -p='[{"op": "add", "path": "/rules/0", "value":{ "apiGroups": ["discovery.k8s.io"], "resources": ["endpointslices"], "verbs": ["list","watch"]}}]'
+# Install Traefik
+kubectl create ns traefik
+/usr/local/bin/helm install traefik --namespace=traefik traefik/traefik
+
+# Install Kyverno
+kubectl create -f https://raw.githubusercontent.com/kyverno/kyverno/release-1.5/definitions/release/install.yaml
