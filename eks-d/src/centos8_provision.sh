@@ -8,6 +8,7 @@
 #             https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/configure-cgroup-driver/
 #             https://kubernetes.io/docs/reference/config-api/kubeadm-config.v1beta3/
 #             https://docs.aws.amazon.com/eks/latest/userguide/managing-coredns.html#updating-coredns-add-on
+#             https://docs.aws.amazon.com/eks/latest/userguide/dashboard-tutorial.html
 #             
 # Author: Justin Cook <jhcook@secnix.com>
 
@@ -103,7 +104,7 @@ __EOF__
 modprobe br_netfilter
 sysctl -p /etc/sysctl.d/99-k8s.conf
 firewall-cmd --zone=public --permanent --add-port=6443/tcp \
-  --add-port=2379-2380/tcp --add-port=10250-10252/tcp
+  --add-port=2379-2380/tcp --add-port=8001/tcp --add-port=10250-10252/tcp
 
 cat << __EOF__ >> /etc/hosts
 10.0.2.15   centos8-vbox centos7-vbox.localdomain
@@ -120,6 +121,7 @@ controlPlaneEndpoint: "10.0.2.15:6443"
 apiServer:
   certSANs:
     - "localhost"
+    - "10.0.2.15"
 ---
 kind: KubeletConfiguration
 apiVersion: kubelet.config.k8s.io/v1beta1
@@ -155,10 +157,3 @@ rm cilium-linux-amd64.tar.gz{,.sha256sum}
 # https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/
 /usr/local/bin/cilium install || /bin/true
 kubectl wait --for=condition=available --timeout=600s deployment/cilium-operator -n kube-system
-
-# Install Traefik
-kubectl create ns traefik
-/usr/local/bin/helm install traefik --namespace=traefik traefik/traefik
-
-# Install Kyverno
-kubectl create -f https://raw.githubusercontent.com/kyverno/kyverno/release-1.5/definitions/release/install.yaml

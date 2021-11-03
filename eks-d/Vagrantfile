@@ -15,8 +15,12 @@ Vagrant.configure("2") do |config|
   config.vagrant.plugins = "vagrant-reload"
 
   # config.vm.box_check_update = false
+  # Kubernetes API
   config.vm.network "forwarded_port", guest_ip: "10.0.2.15", guest: 6443, \
                     host: 6443
+  # Kubernetes Dashboard
+  config.vm.network "forwarded_port", guest_ip: "10.0.2.15", guest: 8001, \
+                    host: 8001
 
   config.vm.provider "virtualbox" do |vb|
     # Display the VirtualBox GUI when booting the machine
@@ -32,4 +36,8 @@ Vagrant.configure("2") do |config|
 
   # Reboot -- c'est la vie
   config.vm.provision :reload
+
+  config.vm.provision "shell" do |sh|
+    sh.path = "src/centos8_postprovision.sh"
+  end
 end
