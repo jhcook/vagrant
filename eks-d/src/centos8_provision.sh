@@ -55,8 +55,6 @@ curl -L --silent --remote-name-all https://get.helm.sh/helm-v3.7.1-linux-amd64.t
 sha256sum --check helm-v3.7.1-linux-amd64.tar.gz.sha256sum
 tar zxvfC helm-v3.7.1-linux-amd64.tar.gz /usr/local/bin --strip-components=1 linux-amd64/helm
 rm helm-v3.7.1-linux-amd64.tar.gz{,.sha256sum}
-/usr/local/bin/helm repo add traefik https://helm.traefik.io/traefik
-/usr/local/bin/helm repo update
 
 # We need to configure docker to use the same cgroup driver as Kubelet
 test -d /etc/docker || mkdir /etc/docker
@@ -104,7 +102,8 @@ __EOF__
 modprobe br_netfilter
 sysctl -p /etc/sysctl.d/99-k8s.conf
 firewall-cmd --zone=public --permanent --add-port=6443/tcp \
-  --add-port=2379-2380/tcp --add-port=8001/tcp --add-port=10250-10252/tcp
+  --add-port=80/tcp --add-port=443/tcp --add-port=2379-2380/tcp \
+  --add-port=8001/tcp --add-port=10250-10252/tcp
 
 cat << __EOF__ >> /etc/hosts
 10.0.2.15   centos8-vbox centos7-vbox.localdomain
