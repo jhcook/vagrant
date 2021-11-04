@@ -90,3 +90,17 @@ Cluster Pods:     2/2 managed by Cilium
 Image versions    cilium             quay.io/cilium/cilium:v1.10.5: 1
                   cilium-operator    quay.io/cilium/operator-generic:v1.10.5: 1
 ```
+
+## Traefik
+
+Kubernetes ingress is handeled by the Traefik Proxy. Access to the dashboard 
+is via port forwarding as seen below. 
+
+```
+$ kubectl port-forward $(kubectl get pods --selector "app.kubernetes.io/name=traefik" --output=name -n traefik) 9000:9000 -n traefik
+Forwarding from 127.0.0.1:9000 -> 9000
+Forwarding from [::1]:9000 -> 9000
+```
+
+Once you have the above indication, open the browser on your host and navigate
+to `http://127.0.0.1:9000`.
