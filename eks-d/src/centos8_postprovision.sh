@@ -16,8 +16,38 @@ TMPDIR="/vagrant/tmp/"
 kubectl wait --for=condition=available --timeout=600s deployment/coredns -n kube-system
 
 # Install Traefik
-kubectl create ns traefik
-/usr/local/bin/helm install traefik --namespace=traefik traefik/traefik
+curl -L --silent -o /usr/local/bin/traefik \
+  https://github.com/traefik/traefik/releases/download/v1.7.33/traefik_linux-amd64
+chmod 755 /usr/local/bin/traefik
+cat << __EOF__ > ${TMPDIR}traefikvalues.yaml
+---
+ports:
+  web:
+    port: 80
+  websecure:
+    port: 443
+
+api:
+  dashboard: true
+  insecure: true
+
+ingressRoute:
+  dashboard:
+    enabled: true
+
+securityContext:
+  capabilities:
+    drop: [ALL]
+    add: [NET_BIND_SERVICE]
+  readOnlyRootFilesystem: true
+  runAsGroup: 0
+  runAsNonRoot: false
+  runAsUser: 0
+__EOF__
+/usr/local/bin/helm repo add traefik https://helm.traefik.io/traefik
+/usr/local/bin/helm repo update
+/usr/local/bin/helm install --namespace=traefik --create-namespace traefik \
+  traefik/traefik -f /vagrant/tmp/traefikvalues.yaml
 kubectl wait --for=condition=available --timeout=600s deployment/traefik -n traefik
 
 # Install Kyverno
