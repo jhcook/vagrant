@@ -1,0 +1,60 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# Build a RHEL8 box requiring a valid RHEL subscription to install and config
+# snapd.
+#
+# Requires: 1) Virtualbox
+#           2) vagrant-registration plugin
+#              https://github.com/projectatomic/adb-vagrant-registration
+#              If you need to bypass proxy to install plugin:
+#              export no_proxy="$no_proxy,gems.hashicorp.com,rubygems.org"
+#
+# Author: Justin Cook <jhcook@secnix.com>
+
+# Script to provision post deploy
+$pscript = <<-SCRIPT
+yum install -y \
+  https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
+yum upgrade
+yum install -y snapd
+systemctl disable firewalld
+systemctl enable --now snapd.socket
+# Wait on snap to seed
+/usr/bin/snap wait system seed.loaded
+ln -s /var/lib/snapd/snap /snap
+/usr/bin/snap install multipass
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "secnix/rhel8"
+
+  # Require the vagrant-registration plugin
+  config.vagrant.plugins = "vagrant-registration"
+
+  # Mark SUB_PASSWORD environment variable as sensitive
+  config.vagrant.sensitive = ENV['SUB_PASSWORD']
+
+  config.vm.provider "virtualbox" do |v|
+#    v.memory = 12288
+    v.memory = 24576
+    v.cpus = 4
+    # Enable nested virtualization
+    v.customize ["modifyvm", :id, "--nested-hw-virt", "on"]
+  end
+
+  # Use a public network for access on the network
+  #config.vm.network "public_network", use_dhcp_assigned_default_route: true
+
+  if Vagrant.has_plugin?('vagrant-registration')
+    config.registration.manager = 'subscription_manager'
+    config.registration.force = false
+    config.registration.unregister_on_halt = false
+    config.registration.username = ENV['SUB_USERNAME']
+    config.registration.password = ENV['SUB_PASSWORD']
+  end
+
+  # Provision the machine with shell and reboot afterwards
+  config.vm.provision "shell", inline: $pscript, reboot: true
+
+end
