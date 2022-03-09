@@ -16,7 +16,7 @@
 $pscript = <<-SCRIPT
 # Disable SELinux because we don't need it to get in the way
 echo "Disable SELinux :'("
-sed -i -E 's|^(SELINUX=).*|\1permissive|' /etc/selinux/config
+sed -i -E 's|^(SELINUX=).*|\\1permissive|' /etc/selinux/config
 setenforce 0
 echo "Install EPEL"
 yum install -y \
@@ -32,7 +32,9 @@ echo "Enable snapd"
 systemctl enable --now snapd.socket
 # Wait on snap to seed
 /usr/bin/snap wait system seed.loaded
-ln -s /var/lib/snapd/snap /snap
+if [ ! -L "/snap" ]; then
+  ln -s /var/lib/snapd/snap /snap
+fi
 echo "Install multipass snap"
 /usr/bin/snap install multipass
 #/usr/bin/snap connect multipass:libvirt
