@@ -1,0 +1,44 @@
+#!/usr/bin/env sh
+#
+# Install the Tigera Calico operator and deploy Calico CNI
+#
+# Requires: kubectl
+#
+# Author: Justin Cook
+
+# Install Tigera operator
+kubectl create -f https://docs.projectcalico.org/archive/v3.19/manifests/tigera-operator.yaml
+
+# Wait on the operator to run
+kubectl rollout status deploy/tigera-operator -n tigera-operator
+
+# Install Calico using Installation kind
+cat <<EOF | kubectl apply -f -
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  calicoNetwork:
+    containerIPForwarding: Enabled
+    ipPools:
+    - cidr: 198.19.16.0/21
+      natOutgoing: Enabled
+      encapsulation: None
+EOF
+
+# Wait until the Installation is progressing
+while :
+do
+  kubectl get tigerastatus/calico 2>/dev/null && break
+  sleep 1
+done
+
+# Display pods until calico-kube-controllers rolls out
+kubectl get pods -A -w &
+watch_pid="$!"
+
+# Wait on calico-kube-controllers deployment
+kubectl rollout status deploy/calico-kube-controllers -n calico-system
+
+kill -15 ${watch_pid}
