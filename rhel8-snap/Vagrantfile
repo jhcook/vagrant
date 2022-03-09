@@ -14,16 +14,29 @@
 
 # Script to provision post deploy
 $pscript = <<-SCRIPT
+# Disable SELinux because we don't need it to get in the way
+echo "Disable SELinux :'("
+sed -i -E 's|^(SELINUX=).*|\1permissive|' /etc/selinux/config
+setenforce 0
+echo "Install EPEL"
 yum install -y \
   https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
 yum upgrade
-yum install -y snapd
+echo "Install snapd" #, libvirt-devel, virt-top, and libguestfs-tools"
+yum install -y snapd #libvirt-devel virt-top libguestfs-tools
+echo "Disable firewalld"
 systemctl disable firewalld
+#echo "Enable libvirtd"
+#systemctl enable --now libvirtd
+echo "Enable snapd"
 systemctl enable --now snapd.socket
 # Wait on snap to seed
 /usr/bin/snap wait system seed.loaded
 ln -s /var/lib/snapd/snap /snap
+echo "Install multipass snap"
 /usr/bin/snap install multipass
+#/usr/bin/snap connect multipass:libvirt
+#/snap/bin/multipass set local.driver=libvirt
 SCRIPT
 
 Vagrant.configure("2") do |config|
@@ -36,8 +49,7 @@ Vagrant.configure("2") do |config|
   config.vagrant.sensitive = ENV['SUB_PASSWORD']
 
   config.vm.provider "virtualbox" do |v|
-#    v.memory = 12288
-    v.memory = 24576
+    v.memory = 12288
     v.cpus = 4
     # Enable nested virtualization
     v.customize ["modifyvm", :id, "--nested-hw-virt", "on"]
