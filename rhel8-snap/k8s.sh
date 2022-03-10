@@ -6,6 +6,8 @@
 # SELinux disabled as it provides no value in this endeavour and can only
 # get in the way, and Bob's your uncle. 
 #
+# References: https://access.redhat.com/solutions/20985
+#
 # Tested on: RHEL8
 #
 # Author: Justin Cook
@@ -24,15 +26,24 @@ do
   multipass info ${node} >/dev/null 2>&1
   if [ $? != 0 ]
   then
-    find ${TMP} --mmin +120 -exec rm {} +
+    # Delete init files cached longer than two hours
+    find ${TMP} -mmin +120 -exec rm {} +
     if [ ! -f "${node}-init.yaml" ]
     then
       curl -s https://${SRV}/${PTH}/${node}-init.yaml -o ${TMP}/${node}-init.yaml
     fi
     echo "Launching ${node}"
-    multipass launch -n ${node} -m 4098M 20.04 --cloud-init ${TMP}/${node}-init.yaml
+    multipass launch -n ${node} -m 4098M 20.04 --timeout 30 \
+      --cloud-init ${TMP}/${node}-init.yaml
   else
     echo "Found ${node} and starting"
-    multipass start ${node}
+    multipass start ${node} --timeout 30
   fi  
+done
+
+# Disable oom-kill for qemu processes
+for pid in `pgrep qemu`
+do
+  echo "Disabling oom-killer for ${pid}"
+  sudo bash -c "echo -17 > /proc/${pid}/oom_adj"
 done
