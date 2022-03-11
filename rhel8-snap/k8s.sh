@@ -24,7 +24,7 @@ do
     mkdir "${TMP}"
   fi
   
-  if [ ! "$(multipass info ${node} >/dev/null 2>&1)" ]
+  if ! multipass info ${node} >/dev/null 2>&1
   then
     # Delete init files cached longer than two hours
     find "${TMP}" -type f -mmin +120 -exec rm {} +
