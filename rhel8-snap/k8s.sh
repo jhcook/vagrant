@@ -27,17 +27,16 @@ do
   if [ $? != 0 ]
   then
     # Delete init files cached longer than two hours
-    find ${TMP} -mmin +120 -exec rm {} +
+    find ${TMP} -type f -mmin +120 -exec rm {} +
     if [ ! -f "${node}-init.yaml" ]
     then
       curl -s https://${SRV}/${PTH}/${node}-init.yaml -o ${TMP}/${node}-init.yaml
     fi
     echo "Launching ${node}"
-    multipass launch -n ${node} -m 4098M 20.04 --timeout 30 \
-      --cloud-init ${TMP}/${node}-init.yaml
+    multipass launch -n ${node} -m 2048M 20.04 --cloud-init ${TMP}/${node}-init.yaml
   else
     echo "Found ${node} and starting"
-    multipass start ${node} --timeout 30
+    multipass start ${node}
   fi  
 done
 
