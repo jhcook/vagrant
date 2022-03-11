@@ -41,7 +41,7 @@ do
 done
 
 # Disable oom-kill for qemu processes
-for pid in `pgrep qemu`
+for pid in $(pgrep qemu)
 do
   echo "Disabling oom-killer for ${pid}"
   sudo bash -c "echo -17 > /proc/${pid}/oom_adj"
