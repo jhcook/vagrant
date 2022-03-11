@@ -30,10 +30,10 @@ do
     find "${TMP}" -type f -mmin +120 -exec rm {} +
     if [ ! -f "${node}-init.yaml" ]
     then
-      curl -s https://${SRV}/${PTH}/${node}-init.yaml -o ${TMP}/${node}-init.yaml
+      curl -s https://${SRV}/${PTH}/${node}-init.yaml -o "${TMP}"/${node}-init.yaml
     fi
     echo "Launching ${node}"
-    multipass launch -n ${node} -m 2048M 20.04 --cloud-init ${TMP}/${node}-init.yaml
+    multipass launch -n ${node} -m 2048M 20.04 --cloud-init "${TMP}"/${node}-init.yaml
   else
     echo "Found ${node} and starting"
     multipass start ${node}
