@@ -17,17 +17,17 @@ SRV="raw.githubusercontent.com"
 PTH="tigera/ccol1/main"
 
 # Fetch each init config and create node
-for node in control node{1,2} host1
+for node in control node1 node2 host1
 do
   if [ ! -d "${TMP}" ]
   then
-    mkdir ${TMP}
+    mkdir "${TMP}"
   fi
-  multipass info ${node} >/dev/null 2>&1
-  if [ $? != 0 ]
+  
+  if [ ! "$(multipass info ${node} >/dev/null 2>&1)" ]
   then
     # Delete init files cached longer than two hours
-    find ${TMP} -type f -mmin +120 -exec rm {} +
+    find "${TMP}" -type f -mmin +120 -exec rm {} +
     if [ ! -f "${node}-init.yaml" ]
     then
       curl -s https://${SRV}/${PTH}/${node}-init.yaml -o ${TMP}/${node}-init.yaml
