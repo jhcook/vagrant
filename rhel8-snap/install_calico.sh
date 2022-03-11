@@ -1,10 +1,13 @@
 #!/usr/bin/env sh
 #
 # Install the Tigera Calico operator and deploy Calico CNI
+# Watch pods until calico-kube-controllers is deployed
 #
 # Requires: kubectl
 #
 # Author: Justin Cook
+
+set -o errexit
 
 # Install Tigera operator
 kubectl create -f https://docs.projectcalico.org/archive/v3.19/manifests/tigera-operator.yaml
@@ -42,3 +45,4 @@ watch_pid="$!"
 kubectl rollout status deploy/calico-kube-controllers -n calico-system
 
 kill -15 ${watch_pid}
+wait ${watch_pid}
