@@ -1,0 +1,29 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+
+$pscript = <<-SCRIPT
+echo "Install multipass snap"
+# Use edge channel
+# https://github.com/canonical/multipass/issues/2336
+/usr/bin/snap install --channel=edge multipass
+# Workaround the lame Ubuntu socket permissions (works fine in RHEL) 
+awk -i inplace '/^ExecStart=/{print;print "ExecStartPost=/bin/sh -c \\"until [ -S /var/snap/multipass/common/multipass_socket ]; do sleep 1 ; done ; /usr/bin/chmod o+rw /var/snap/multipass/common/multipass_socket\\"";next}1' /etc/systemd/system/snap.multipass.multipassd.service
+systemctl daemon-reload
+systemctl restart snap.multipass.multipassd.service
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "ubuntu/focal64"
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 12288
+    v.cpus = 4
+    # Enable nested virtualization
+    v.customize ["modifyvm", :id, "--nested-hw-virt", "on"]
+  end
+  config.vm.provision "shell", inline: $pscript, reboot: true
+end
