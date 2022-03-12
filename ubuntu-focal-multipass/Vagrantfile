@@ -25,5 +25,9 @@ Vagrant.configure("2") do |config|
     # Enable nested virtualization
     v.customize ["modifyvm", :id, "--nested-hw-virt", "on"]
   end
+  config.vm.synced_folder ".", "/mnt/vagrant", id: "vagrant", automount: true
+  config.vm.provision "shell", inline: "usermod -a -G vboxsf vagrant"
+  config.vm.provision "shell", inline: "ln -sf /media/sf_vagrant /vagrant"
+
   config.vm.provision "shell", inline: $pscript, reboot: true
 end
