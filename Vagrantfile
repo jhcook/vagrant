@@ -2,7 +2,7 @@
 # vi: set ft=ruby :
 
 Vagrant.configure("2") do |config|
-    config.vm.box = "generic/rhel8"
+    config.vm.box = "generic/rhel9"
 
     if Vagrant.has_plugin?('vagrant-registration')
       config.registration.username = ENV['rhn_username']
@@ -19,9 +19,18 @@ Vagrant.configure("2") do |config|
         v.cpus = 2
     end
 
-    #config.vm.provision "file", source: "cls_prerequisites.yaml", destination: "cls_prerequisites.yaml"
-    #config.vm.provision "file", source: "cls_postinstall.yaml", destination: "cls_postinstall.yaml"
-    #config.vm.provision "file", source: "nagiosls-install.sh", destination: "nagiosls-install.sh"
+    config.vm.provider "vmware_desktop" do |v|
+        v.vmx["memsize"] = "8192"
+        v.vmx["numvcpus"] = "2"
+    end
+
+
+    config.vm.provision "file", source: "cls_prerequisites.yaml",
+                        destination: "/tmp/cls_prerequisites.yaml"
+    config.vm.provision "file", source: "cls_postinstall.yaml",
+                        destination: "/tmp/cls_postinstall.yaml"
+    config.vm.provision "file", source: "nagiosls-install.sh",
+                        destination: "/tmp/nagiosls-install.sh"
 
     config.vm.provision "shell", inline: <<-SHELL
         echo "root:vagrant" | chpasswd
@@ -47,7 +56,6 @@ __EOF__
     end
 
     config.vm.define "master2" do |master|
-        #master.vm.box = "nagiosls-rhel8"
         master.vm.hostname = "master2"
         master.vm.network "private_network", ip: "192.168.123.212"
         master.vm.network "forwarded_port", guest: 80, host: 8082
